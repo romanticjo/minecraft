@@ -32,4 +32,4 @@ function updateSmoker ()
 end
 
 furnaces = getConnectedFurnaces()
-server.run(client, 'jo-factory', 'back', updateSmoker, 2)
+server.run('client', 'jo-factory', 'back', updateSmoker, 2)
