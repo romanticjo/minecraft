@@ -73,13 +73,16 @@ local function loop (commandTable, timerFunc, delay)
 	assert(commandTable)
 	while true do
 		local sid, msg, p;
-		if timerFunc then 
-			sid, msg, p = rednet.receive(protocol, timerFunc, delay or 30) 
+		if timerFunc then
+			repeat
+				sid, msg, p = rednet.receive(protocol, delay or 30)
+				timerFunc()
+			until sid
 		else
 			sid, msg, p = rednet.receive(protocol);
 		end
 		assert(p == protocol)
-		print('network: ' .. msg)
+		--print('network: ' .. msg)
 		cmd, args = parse(msg)
 		local func = commandTable[cmd]
 		if func then
@@ -88,7 +91,21 @@ local function loop (commandTable, timerFunc, delay)
 	end
 end
 
-function run (role, _protocol, modemLocation, timerFunc, delay) 
+function addCommandTable (source, commands)
+	if source == 'server' then
+		for k,v in pairs(commands) do
+			serverCommands[k] = v
+		end
+	end
+end
+
+function send (message)
+	if server then
+		rednet.send( tonumber(server), message, protocol);
+	end
+end
+
+function run (role, _protocol, timerFunc, delay) 
 	print( 'Client/Server - Sample' )
 	print( 'We are computer: ' .. os.getComputerID())
 
@@ -96,11 +113,14 @@ function run (role, _protocol, modemLocation, timerFunc, delay)
 
 	assert(role == 'client' or role == 'server', 'Specify "client" or "server"')
 	assert(protocol, 'Specify a server')
-	assert(modemLocation == 'left' or modemLocation == 'right' 
-		or modemLocation == 'top' or modemLocation == 'bottom'
-		or modemLocation == 'front' or modemLocation == 'back', 'Specify side for the rednet conenction.');
+	--assert(modemLocation == 'left' or modemLocation == 'right' 
+	--	or modemLocation == 'top' or modemLocation == 'bottom'
+	--	or modemLocation == 'front' or modemLocation == 'back', 'Specify side for the rednet conenction.');
 
-	rednet.open(modemLocation)
+	local modemLocation = peripheral.find('modem', function (n,o) return o.isWireless() end );
+	modemLocation.open(os.getComputerID())
+	modemLocation.open(65535)
+	--rednet.open(modemLocation)
 
 	if role == 'server' then
 		local hosts = {rednet.lookup(protocol, 'server')}
@@ -126,5 +146,4 @@ function run (role, _protocol, modemLocation, timerFunc, delay)
 		loop(clientCommands, timerFunc, delay)
 	end
 end
-
 

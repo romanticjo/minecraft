@@ -1,7 +1,7 @@
 print('Launching Furnace Monitoring')
 
-os.loadAPI('clienterserver.lua')
-local server=(getfenv())["clienterserver.lua"]
+os.loadAPI('clientserver.lua')
+local server=(getfenv())["clientserver.lua"]
 local furnaces
 
 function getConnectedFurnaces () 
@@ -31,5 +31,44 @@ function updateSmoker ()
 	server.send('smoking|' .. tostring(isBurning))
 end
 
-furnaces = getConnectedFurnaces()
-server.run('client', 'jo-factory', 'back', updateSmoker, 2)
+local args = { ... }
+local type = args[1]
+local protocol = args[2]
+
+local clients = {}
+
+function onSmoking (sid, isSmoking)
+	clients[sid] = { time = os.time(), isSmoking = isSmoking == 'true' }
+	updateSmokeStack();
+end
+
+function updateSmokeStack ()
+	local turnOn = false
+	local time = os.time()
+
+	local toRemove = {}
+	for k,v in pairs(clients) do
+		if math.abs( v.time - time ) > 0.1 then
+			table.insert(toRemove, k)
+			--clients[k] = nil
+		else
+			turnOn = turnOn or v.isSmoking
+		end
+	end
+	for i=1,#toRemove do
+		clients[toRemove[i]] = nill
+	end
+	redstone.setOutput('top', not turnOn)
+end
+
+if type == 'client' then
+  furnaces = getConnectedFurnaces()
+  server.run('client', protocol or 'jo-factory', updateSmoker, 2)
+elseif type == 'server' then
+  local commandTable = {
+  	smoking = onSmoking
+  }
+  server.addCommandTable('server', commandTable)
+  server.run('server', protocol or 'jo-factory', updateSmokeStack, 10);
+end
+
